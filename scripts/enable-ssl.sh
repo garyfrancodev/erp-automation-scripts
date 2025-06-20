@@ -13,6 +13,6 @@ fi
 cd /home/frappe/erpnext-bench
 
 echo "🔒 Habilitando SSL con Let's Encrypt para $SITE_NAME con el correo $EMAIL..."
-sudo bench setup lets-encrypt "$SITE_NAME" --email "$EMAIL"
+sudo bench setup lets-encrypt "$SITE_NAME"
 
 echo "✅ Certificado SSL configurado correctamente para $SITE_NAME"
