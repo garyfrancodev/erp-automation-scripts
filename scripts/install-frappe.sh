@@ -5,7 +5,7 @@ echo "🚀 Instalando Frappe Bench..."
 
 # Instalar frappe-bench CLI si no está
 if ! command -v bench &> /dev/null; then
-  sudo pip3 install frappe-bench --break-system-packages
+  sudo pip3 install frappe-bench
 fi
 
 echo "🔍 Verificando versión de Bench..."
