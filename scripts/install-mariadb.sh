@@ -7,13 +7,18 @@ sudo apt-get install -y mariadb-server mariadb-client
 echo "🔐 Ejecutando configuración segura..."
 sudo mariadb-secure-installation
 
-echo "🔧 Configurando charset en /etc/mysql/my.cnf..."
-sudo tee /etc/mysql/my.cnf > /dev/null <<EOF
+echo "🔧 Configurando charset y compatibilidad para Frappe..."
+sudo tee /etc/mysql/conf.d/frappe.cnf > /dev/null <<EOF
 [mysqld]
 character-set-client-handshake = FALSE
 character-set-server = utf8mb4
 collation-server = utf8mb4_unicode_ci
-
-[mysql]
-default-character-set = utf8mb4
+innodb_file_format = Barracuda
+innodb_file_per_table = 1
+innodb_large_prefix = 1
 EOF
+
+echo "🔁 Reiniciando MariaDB..."
+sudo systemctl restart mariadb
+
+echo "✅ MariaDB instalado y configurado correctamente para ERPNext."
