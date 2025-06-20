@@ -20,15 +20,3 @@ cd $BENCH_DIR
 
 echo "📦 Obteniendo la app ERPNext..."
 bench get-app erpnext --branch $FRAPPE_BRANCH
-
-# Crear nuevo sitio
-SITE_NAME=sitio1.local
-ADMIN_PASSWORD=admin123
-
-echo "🌐 Creando nuevo sitio $SITE_NAME..."
-bench new-site $SITE_NAME --admin-password $ADMIN_PASSWORD --force
-
-echo "🔌 Instalando ERPNext en el sitio..."
-bench --site $SITE_NAME install-app erpnext
-
-echo "✅ ERPNext instalado en $SITE_NAME"
