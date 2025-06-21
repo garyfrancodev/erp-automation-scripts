@@ -11,11 +11,11 @@ echo "📦 Configurando Supervisor para Frappe..."
 bench setup supervisor
 
 echo "🔧 Configurando producción para el usuario frappe..."
-sudo bench setup production frappe
+bench setup production frappe
 
 echo "🔁 Reiniciando servicios..."
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl restart all
+supervisorctl reread
+supervisorctl update
+supervisorctl restart all
 
 echo "✅ Producción lista con Nginx, Supervisor y multisitio activado."

@@ -4,62 +4,87 @@ set -e
 # ======================
 # 🔧 Parámetros esperados
 # ======================
-
-SITE_NAME="$1"
+SUBDOMAIN="$1"
 DB_USER="$2"
 DB_PASSWORD="$3"
-ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin123}"  # puedes parametrizar esto también si quieres
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin123}"
+DOMAIN_NAME="mandox.com.bo"
+IP="172.235.128.227"
+SITE_NAME="$SUBDOMAIN.$DOMAIN_NAME"
+BENCH_DIR="/home/frappe/erpnext-bench"
+ERP_DOMAINS_API=$(op read "op://ERP/ERP_DOMAINS/credential")
 
 # ======================
-# 🚨 Validación de argumentos
+# 🚨 Validación
 # ======================
-if [ -z "$SITE_NAME" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
-  echo "❌ Uso incorrecto. Debes proporcionar:"
-  echo "   bash create-site.sh <site-name> <db-user> <db-password>"
-  echo "   Ejemplo:"
-  echo "   bash create-site.sh erp.empresa.com frappe Secreta123!"
+if [ -z "$SUBDOMAIN" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+  echo "❌ Uso: bash crear-sitio-con-dns.sh <subdominio> <db-user> <db-password>"
+  echo "Ej:   bash crear-sitio-con-dns.sh cliente1 frappe Secreta123!"
+  exit 1
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "❌ Falta 'jq'. Instálalo con: sudo apt install jq"
   exit 1
 fi
 
 # ======================
-# 📁 Paths y configuración
+# 🌐 Crear subdominio en Linode
 # ======================
-BENCH_DIR="/home/frappe/erpnext-bench"
-cd "$BENCH_DIR"
+echo "🔎 Buscando dominio '$DOMAIN_NAME'..."
+DOMAIN_ID=$(curl -s -H "Authorization: Bearer $ERP_DOMAINS_API" https://api.linode.com/v4/domains \
+  | jq -r ".data[] | select(.domain==\"$DOMAIN_NAME\") | .id")
+
+if [ -z "$DOMAIN_ID" ]; then
+  echo "❌ Dominio no encontrado en Linode."
+  exit 1
+fi
+
+echo "🌐 Creando subdominio '$SUBDOMAIN.$DOMAIN_NAME'..."
+CREATE_SUBDOMAIN_RESPONSE=$(curl -s -X POST https://api.linode.com/v4/domains/$DOMAIN_ID/records \
+  -H "Authorization: Bearer $ERP_DOMAINS_API" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"type\": \"A\",
+    \"name\": \"$SUBDOMAIN\",
+    \"target\": \"$IP\",
+    \"ttl_sec\": 300
+  }")
+
+if echo "$CREATE_SUBDOMAIN_RESPONSE" | jq -e '.errors' >/dev/null; then
+  echo "❌ Error al crear subdominio:"
+  echo "$CREATE_SUBDOMAIN_RESPONSE" | jq '.errors'
+  exit 1
+fi
+echo "✅ Subdominio '$SUBDOMAIN.$DOMAIN_NAME' creado."
 
 # ======================
-# ❌ Evitar duplicados
+# 🏗️ Crear sitio ERPNext
 # ======================
+cd "$BENCH_DIR"
+
 if bench list-sites | grep -q "$SITE_NAME"; then
   echo "⚠️ El sitio '$SITE_NAME' ya existe. Abortando."
   exit 1
 fi
 
-# ======================
-# 🏗️ Crear sitio
-# ======================
-echo "🌐 Creando sitio: $SITE_NAME"
+echo "🌐 Creando sitio ERPNext: $SITE_NAME"
 bench new-site "$SITE_NAME" \
   --admin-password "$ADMIN_PASSWORD" \
   --mariadb-root-username "$DB_USER" \
   --mariadb-root-password "$DB_PASSWORD" \
   --no-mariadb-socket
 
-# ======================
-# 📦 Instalar apps
-# ======================
-echo "📦 Instalando apps en $SITE_NAME..."
+echo "📦 Instalando apps..."
 bench --site "$SITE_NAME" install-app erpnext
 bench --site "$SITE_NAME" install-app hrms
 
-echo "✅ Sitio '$SITE_NAME' creado e inicializado correctamente."
+# ======================
+# 🔐 Ajustar permisos
+# ======================
+echo "🔐 Ajustando permisos..."
+chmod o+x /home/frappe /home/frappe/erpnext-bench /home/frappe/erpnext-bench/sites
+chmod o+x "/home/frappe/erpnext-bench/sites/$SITE_NAME"
+chmod -R o+rx "/home/frappe/erpnext-bench/sites/$SITE_NAME/public"
 
-echo "🔐 Estableciendo permisos mínimos para NGINX..."
-
-sudo chmod o+x /home/frappe
-sudo chmod o+x /home/frappe/erpnext-bench
-sudo chmod o+x /home/frappe/erpnext-bench/sites
-sudo chmod o+x "/home/frappe/erpnext-bench/sites/$SITE_NAME"
-sudo chmod -R o+rx "/home/frappe/erpnext-bench/sites/$SITE_NAME/public"
-
-echo "✅ Permisos establecidos correctamente para $SITE_NAME"
+echo "✅ Sitio '$SITE_NAME' creado, apps instaladas y subdominio configurado correctamente."

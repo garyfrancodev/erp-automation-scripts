@@ -1,15 +1,19 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 
-echo "🔄 Actualizando índices de paquetes..."
+echo "🔄 [1/3] Actualizando índices de paquetes..."
 sudo apt-get update -y
 
-echo "📦 Actualizando paquetes del sistema (manteniendo tus configuraciones existentes)..."
+echo "📦 [2/3] Actualizando paquetes del sistema..."
 sudo apt-get -y -q \
     -o Dpkg::Options::="--force-confdef" \
     -o Dpkg::Options::="--force-confold" \
     dist-upgrade
 
-echo "✅ Sistema actualizado sin intervención manual."
+echo "🧹 [3/3] Limpiando paquetes obsoletos..."
+sudo apt-get autoremove -y
+sudo apt-get clean
+
+echo "✅ Sistema actualizado correctamente sin intervención manual."

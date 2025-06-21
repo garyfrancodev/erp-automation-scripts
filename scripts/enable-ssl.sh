@@ -10,9 +10,25 @@ if [ -z "$SITE_NAME" ] || [ -z "$EMAIL" ]; then
   exit 1
 fi
 
+if ! command -v bench &> /dev/null; then
+  echo "❌ El comando 'bench' no está disponible. Aborta."
+  exit 1
+fi
+
+if [ ! -d "/home/frappe/erpnext-bench" ]; then
+  echo "❌ El directorio de bench '/home/frappe/erpnext-bench' no existe. Aborta."
+  exit 1
+fi
+
 cd /home/frappe/erpnext-bench
 
+if ! bench list-sites | grep -q "$SITE_NAME"; then
+  echo "❌ El sitio '$SITE_NAME' no existe. Aborta la configuración de SSL."
+  exit 1
+fi
+
 echo "🔒 Habilitando SSL con Let's Encrypt para $SITE_NAME con el correo $EMAIL..."
-sudo bench setup lets-encrypt "$SITE_NAME"
+bench setup lets-encrypt "$SITE_NAME" --email "$EMAIL"
 
 echo "✅ Certificado SSL configurado correctamente para $SITE_NAME"
+echo "📂 Certificados ubicados en: /etc/letsencrypt/live/$SITE_NAME/"
