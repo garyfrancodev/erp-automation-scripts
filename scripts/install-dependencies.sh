@@ -40,4 +40,4 @@ wget https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-2/wkhtm
 sudo dpkg -i wkhtmltox_0.12.6.1-2.jammy_amd64.deb || sudo apt-get install -f -y
 
 echo "📦 Instalando Yarn..."
-npm install -g yarn
+sudo npm install -g yarn
