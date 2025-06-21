@@ -63,7 +63,7 @@ echo "✅ Subdominio '$SUBDOMAIN.$DOMAIN_NAME' creado."
 # ======================
 cd "$BENCH_DIR"
 
-if bench list-sites | grep -q "$SITE_NAME"; then
+if [ -d "sites/$SITE_NAME" ]; then
   echo "⚠️ El sitio '$SITE_NAME' ya existe. Abortando."
   exit 1
 fi
@@ -73,7 +73,7 @@ bench new-site "$SITE_NAME" \
   --admin-password "$ADMIN_PASSWORD" \
   --mariadb-root-username "$DB_USER" \
   --mariadb-root-password "$DB_PASSWORD" \
-  --no-mariadb-socket
+  --mariadb-user-host-login-scope="%"
 
 echo "📦 Instalando apps..."
 bench --site "$SITE_NAME" install-app erpnext
