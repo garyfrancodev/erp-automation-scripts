@@ -45,11 +45,6 @@ fi
 sudo mysql -e "GRANT ALL PRIVILEGES ON *.* TO '$DB_USER'@'$DB_HOST' WITH GRANT OPTION;"
 sudo mysql -e "FLUSH PRIVILEGES;"
 
-echo "📁 Guardando en $ENV_FILE..."
-echo "DB_USER=$DB_USER" > "$ENV_FILE"
-echo "DB_PASSWORD=$DB_PASSWORD" >> "$ENV_FILE"
-chmod 600 "$ENV_FILE"
-
 echo "✅ MariaDB lista para usar con ERPNext."
 echo "🔑 Usuario: $DB_USER"
 echo "🔐 Contraseña generada: $DB_PASSWORD"
