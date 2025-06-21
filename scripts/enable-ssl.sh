@@ -15,20 +15,23 @@ if ! command -v bench &> /dev/null; then
   exit 1
 fi
 
-if [ ! -d "/home/frappe/erpnext-bench" ]; then
-  echo "❌ El directorio de bench '/home/frappe/erpnext-bench' no existe. Aborta."
+BENCH_PATH="/home/frappe/erpnext-bench"
+SITE_PATH="$BENCH_PATH/sites/$SITE_NAME"
+
+if [ ! -d "$BENCH_PATH" ]; then
+  echo "❌ El directorio de bench '$BENCH_PATH' no existe. Aborta."
   exit 1
 fi
 
-cd /home/frappe/erpnext-bench
-
-if ! bench list-sites | grep -q "$SITE_NAME"; then
-  echo "❌ El sitio '$SITE_NAME' no existe. Aborta la configuración de SSL."
+if [ ! -d "$SITE_PATH" ]; then
+  echo "❌ El sitio '$SITE_NAME' no existe en $SITE_PATH. Aborta la configuración de SSL."
   exit 1
 fi
+
+cd "$BENCH_PATH"
 
 echo "🔒 Habilitando SSL con Let's Encrypt para $SITE_NAME con el correo $EMAIL..."
-bench setup lets-encrypt "$SITE_NAME" --email "$EMAIL"
+sudo bench setup lets-encrypt "$SITE_NAME" --email "$EMAIL"
 
 echo "✅ Certificado SSL configurado correctamente para $SITE_NAME"
 echo "📂 Certificados ubicados en: /etc/letsencrypt/live/$SITE_NAME/"
