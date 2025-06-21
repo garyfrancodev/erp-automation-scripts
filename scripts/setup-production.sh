@@ -5,12 +5,12 @@ BENCH_DIR="/home/frappe/erpnext-bench"
 cd "$BENCH_DIR"
 
 echo "🌐 Activando modo multisitio por dominio (DNS multitenant)..."
-bench config dns_multitenant on
+sudo -u frappe bench config dns_multitenant on
 
 echo "📦 Configurando Supervisor para Frappe..."
-bench setup supervisor
+sudo -u frappe bench setup supervisor
 
-echo "🔧 Configurando producción para el usuario frappe..."
+echo "🔧 Configurando producción (usando user=frappe)..."
 bench setup production frappe
 
 echo "🔁 Reiniciando servicios..."
