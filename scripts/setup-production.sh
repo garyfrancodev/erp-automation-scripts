@@ -14,8 +14,8 @@ echo "🔧 Configurando producción para el usuario frappe..."
 bench setup production frappe
 
 echo "🔁 Reiniciando servicios..."
-supervisorctl reread
-supervisorctl update
-supervisorctl restart all
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl restart all
 
 echo "✅ Producción lista con Nginx, Supervisor y multisitio activado."
