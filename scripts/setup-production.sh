@@ -7,6 +7,9 @@ cd "$BENCH_DIR"
 echo "🌐 Activando modo multisitio por dominio (DNS multitenant)..."
 bench config dns_multitenant on
 
+echo "📦 Configurando Supervisor para Frappe..."
+bench setup supervisor
+
 echo "🔧 Configurando producción para el usuario frappe..."
 sudo bench setup production frappe
 
