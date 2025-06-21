@@ -53,3 +53,13 @@ bench --site "$SITE_NAME" install-app erpnext
 bench --site "$SITE_NAME" install-app hrms
 
 echo "✅ Sitio '$SITE_NAME' creado e inicializado correctamente."
+
+echo "🔐 Estableciendo permisos mínimos para NGINX..."
+
+sudo chmod o+x /home/frappe
+sudo chmod o+x /home/frappe/erpnext-bench
+sudo chmod o+x /home/frappe/erpnext-bench/sites
+sudo chmod o+x "/home/frappe/erpnext-bench/sites/$SITE_NAME"
+sudo chmod -R o+rx "/home/frappe/erpnext-bench/sites/$SITE_NAME/public"
+
+echo "✅ Permisos establecidos correctamente para $SITE_NAME"
