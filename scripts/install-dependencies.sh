@@ -20,15 +20,6 @@ sudo apt-get install -y \
   npm \
   supervisor
 
-echo "📦 Verificando configuración de supervisord..."
-
-if ! grep -q 'files = /etc/supervisor/conf.d/*.conf' /etc/supervisor/supervisord.conf; then
-    echo "🛠️ Corrigiendo supervisord.conf"
-    sudo sed -i '/^\[include\]/a files = /etc/supervisor/conf.d/*.conf' /etc/supervisor/supervisord.conf
-fi
-
-sudo systemctl restart supervisor
-
 echo "📦 Agregando repositorio oficial de Ansible..."
 sudo add-apt-repository --yes --update ppa:ansible/ansible
 
