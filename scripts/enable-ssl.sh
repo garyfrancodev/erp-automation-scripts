@@ -31,7 +31,9 @@ fi
 cd "$BENCH_PATH"
 
 echo "🔒 Habilitando SSL con Let's Encrypt para $SITE_NAME con el correo $EMAIL..."
-sudo bench setup lets-encrypt "$SITE_NAME" --email "$EMAIL"
+
+# Usar LETSENCRYPT_EMAIL como variable de entorno
+LETSENCRYPT_EMAIL="$EMAIL" bench setup lets-encrypt "$SITE_NAME"
 
 echo "✅ Certificado SSL configurado correctamente para $SITE_NAME"
 echo "📂 Certificados ubicados en: /etc/letsencrypt/live/$SITE_NAME/"
