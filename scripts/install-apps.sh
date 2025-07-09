@@ -32,4 +32,12 @@ else
   bench get-app hrms --branch "$FRAPPE_BRANCH"
 fi
 
+# Instalar webshop si no está
+if [ -d "apps/webshop" ]; then
+  echo "ℹ️ La app 'webshop' ya está instalada. Saltando..."
+else
+  echo "💳 Obteniendo app 'webshop'..."
+  bench get-app webshop --branch "$FRAPPE_BRANCH"
+fi
+
 echo "✅ Todas las apps fueron obtenidas correctamente."
