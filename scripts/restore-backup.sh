@@ -2,11 +2,10 @@
 set -e
 
 SITIO=$1
-DB_PASSWORD=$2  # contraseña MariaDB del usuario frappe
 BENCH_DIR="/home/frappe/erpnext-bench"
 
-if [[ -z "$SITIO" || -z "$DB_PASSWORD" ]]; then
-  echo "Uso: ./restore-backup.sh sitio_destino db_password_frappe"
+if [[ -z "$SITIO" ]]; then
+  echo "Uso: ./restore-backup.sh sitio_destino"
   exit 1
 fi
 
