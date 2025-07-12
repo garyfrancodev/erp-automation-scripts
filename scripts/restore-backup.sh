@@ -21,10 +21,10 @@ echo "♻️ Restaurando base de datos desde $SQL_FILE..."
 bench --site "$SITIO" --force restore "$SQL_FILE"
 
 echo "📂 Restaurando archivos públicos..."
-tar -xvf "$FILES_TAR" -C sites/"$SITIO"/public/
+tar --strip-components=3 -xvf "$FILES_TAR" -C sites/"$SITIO"/public/files/
 
 echo "📂 Restaurando archivos privados..."
-tar -xvf "$PRIVATE_TAR" -C sites/"$SITIO"/private/
+tar --strip-components=3 -xvf "$PRIVATE_TAR" -C sites/"$SITIO"/private/files/
 
 echo "📚 Instalando dependencias desde requirements.txt..."
 bench setup requirements
