@@ -23,7 +23,7 @@ bench --version
 
 # Variables
 FRAPPE_BRANCH=version-15
-BENCH_DIR=erpnext-bench
+BENCH_DIR=frappe-bench
 BENCH_PATH="/home/frappe/$BENCH_DIR"
 
 # Validar directorio home
