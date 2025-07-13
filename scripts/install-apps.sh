@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-BENCH_DIR="/home/frappe/erpnext-bench"
+BENCH_DIR="/home/frappe/frappe-bench"
 FRAPPE_BRANCH="version-15"
 
 if ! command -v bench &> /dev/null; then

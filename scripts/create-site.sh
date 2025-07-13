@@ -11,7 +11,7 @@ ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin123}"
 DOMAIN_NAME="mandox.com.bo"
 IP="172.235.142.98"
 SITE_NAME="$SUBDOMAIN.$DOMAIN_NAME"
-BENCH_DIR="/home/frappe/erpnext-bench"
+BENCH_DIR="/home/frappe/frappe-bench"
 ERP_DOMAINS_API=$(op read "op://ERP/ERP_DOMAINS/credential")
 
 # ======================
@@ -83,8 +83,8 @@ bench --site "$SITE_NAME" install-app hrms
 # 🔐 Ajustar permisos
 # ======================
 echo "🔐 Ajustando permisos..."
-chmod o+x /home/frappe /home/frappe/erpnext-bench /home/frappe/erpnext-bench/sites
-chmod o+x "/home/frappe/erpnext-bench/sites/$SITE_NAME"
-chmod -R o+rx "/home/frappe/erpnext-bench/sites/$SITE_NAME/public"
+chmod o+x /home/frappe /home/frappe/frappe-bench /home/frappe/frappe-bench/sites
+chmod o+x "/home/frappe/frappe-bench/sites/$SITE_NAME"
+chmod -R o+rx "/home/frappe/frappe-bench/sites/$SITE_NAME/public"
 
 echo "✅ Sitio '$SITE_NAME' creado, apps instaladas y subdominio configurado correctamente."

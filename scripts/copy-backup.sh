@@ -3,7 +3,7 @@ set -e
 
 ORIGEN=$1
 DESTINO=$2
-BENCH_DIR="/home/frappe/erpnext-bench"
+BENCH_DIR="/home/frappe/frappe-bench"
 
 if [[ -z "$ORIGEN" || -z "$DESTINO" ]]; then
   echo "Uso: ./copy-backup.sh sitio_origen sitio_destino"

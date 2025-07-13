@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-BENCH_DIR="/home/frappe/erpnext-bench"
+BENCH_DIR="/home/frappe/frappe-bench"
 cd "$BENCH_DIR"
 
 echo "🌐 Activando modo multisitio por dominio (DNS multitenant)..."

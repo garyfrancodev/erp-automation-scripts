@@ -15,7 +15,7 @@ if ! command -v bench &> /dev/null; then
   exit 1
 fi
 
-BENCH_PATH="/home/frappe/erpnext-bench"
+BENCH_PATH="/home/frappe/frappe-bench"
 SITE_PATH="$BENCH_PATH/sites/$SITE_NAME"
 
 if [ ! -d "$BENCH_PATH" ]; then

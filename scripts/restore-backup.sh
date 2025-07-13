@@ -2,7 +2,7 @@
 set -e
 
 SITIO=$1
-BENCH_DIR="/home/frappe/erpnext-bench"
+BENCH_DIR="/home/frappe/frappe-bench"
 
 if [[ -z "$SITIO" ]]; then
   echo "Uso: ./restore-backup.sh sitio_destino"
