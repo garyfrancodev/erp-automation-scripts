@@ -5,6 +5,7 @@
 # Uso: ./enable-ssl.sh <subdominio> [email]
 # Ejemplo: ./enable-ssl.sh tic
 #         ./enable-ssl.sh tic admin@wdstudio.com.bo
+#         ./enable-ssl.sh @ admin@wdstudio.com.bo
 #
 
 set -euo pipefail
@@ -26,11 +27,13 @@ Uso: $0 <subdominio> [email]
 
 Argumentos:
   subdominio    Nombre del subdominio (ej. 'tic' para tic.wdstudio.com.bo)
+                Usa '@' o 'root' para el dominio raíz
   email         Email para Let's Encrypt (opcional, usa LETSENCRYPT_EMAIL del .env)
 
 Ejemplos:
   $0 tic
   $0 logisstar admin@wdstudio.com.bo
+  $0 @ admin@wdstudio.com.bo
   $0 ingetrans --staging        # Modo de prueba (no cuenta contra rate limits)
 
 Flags:
@@ -80,12 +83,6 @@ if [[ "$(whoami)" != "${FRAPPE_USER}" ]]; then
     exit 1
 fi
 
-# Validar formato del subdominio
-if ! [[ "${SUBDOMAIN}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
-    echo "❌ Subdominio inválido: '${SUBDOMAIN}'" >&2
-    exit 1
-fi
-
 # Validar dependencias
 for cmd in bench certbot curl dig; do
     if ! command -v "${cmd}" &> /dev/null; then
@@ -126,13 +123,26 @@ if ! [[ "${EMAIL}" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]]; then
     exit 1
 fi
 
-SITE_NAME="${SUBDOMAIN}.${DOMAIN_NAME}"
+# Normalizar subdominio especial
+if [[ "${SUBDOMAIN}" == "@" ]] || [[ "${SUBDOMAIN}" == "root" ]]; then
+    SITE_NAME="${DOMAIN_NAME}"
+    DISPLAY_NAME="@"
+else
+    if ! [[ "${SUBDOMAIN}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+        echo "❌ Subdominio inválido: '${SUBDOMAIN}'" >&2
+        exit 1
+    fi
+
+    SITE_NAME="${SUBDOMAIN}.${DOMAIN_NAME}"
+    DISPLAY_NAME="${SUBDOMAIN}"
+fi
+
 SITE_PATH="${BENCH_DIR}/sites/${SITE_NAME}"
 
 # Validar que el sitio existe
 if [[ ! -d "${SITE_PATH}" ]]; then
     echo "❌ El sitio '${SITE_NAME}' no existe en ${SITE_PATH}" >&2
-    echo "   Créalo primero con: ./create-site.sh ${SUBDOMAIN} <apps>" >&2
+    echo "   Créalo primero con: ./create-site.sh ${DISPLAY_NAME} <apps>" >&2
     exit 1
 fi
 
@@ -144,7 +154,7 @@ echo "   📋 Staging:   ${STAGING}"
 # ----------------------------------------------------------------------
 # Log
 # ----------------------------------------------------------------------
-LOG_FILE="/home/${FRAPPE_USER}/logs/enable-ssl-${SUBDOMAIN}-$(date +%Y%m%d-%H%M%S).log"
+LOG_FILE="/home/${FRAPPE_USER}/logs/enable-ssl-$(echo "${SITE_NAME}" | tr '.' '_')-$(date +%Y%m%d-%H%M%S).log"
 mkdir -p "$(dirname "${LOG_FILE}")"
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
@@ -161,7 +171,7 @@ RESOLVED_IP=$(dig +short "${SITE_NAME}" @8.8.8.8 2>/dev/null | tail -n1)
 
 if [[ -z "${RESOLVED_IP}" ]]; then
     echo "❌ ${SITE_NAME} no resuelve en DNS." >&2
-    echo "   Verifica el registro A en Linode y espera propagación (hasta 5min)." >&2
+    echo "   Verifica el registro A y espera propagación." >&2
     exit 1
 fi
 
@@ -176,7 +186,7 @@ fi
 echo "   ✅ DNS OK: ${SITE_NAME} → ${RESOLVED_IP}"
 
 # ----------------------------------------------------------------------
-# 3. Verificar accesibilidad HTTP (Let's Encrypt necesita puerto 80)
+# 3. Verificar accesibilidad HTTP
 # ----------------------------------------------------------------------
 
 echo "🔌 [3/7] Verificando accesibilidad HTTP..."
@@ -187,17 +197,16 @@ HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 10 \
 if [[ "${HTTP_STATUS}" == "000" ]]; then
     echo "❌ ${SITE_NAME} no responde en HTTP (puerto 80)." >&2
     echo "   Posibles causas:" >&2
-    echo "   - Firewall bloqueando puerto 80 (sudo ufw status)" >&2
-    echo "   - Nginx no corriendo (sudo systemctl status nginx)" >&2
+    echo "   - Firewall bloqueando puerto 80" >&2
+    echo "   - Nginx no corriendo" >&2
     echo "   - DNS aún no propagado globalmente" >&2
     exit 1
 fi
 
-# Cualquier 2xx, 3xx o 4xx indica que al menos llega a Nginx
 if [[ "${HTTP_STATUS}" =~ ^[234] ]]; then
     echo "   ✅ HTTP responde (status: ${HTTP_STATUS})"
 else
-    echo "   ⚠️  HTTP status inesperado: ${HTTP_STATUS}" >&2
+    echo "   ⚠️  HTTP status inesperado: ${HTTP_STATUS}"
     echo "   Continuando de todos modos..."
 fi
 
@@ -210,7 +219,6 @@ echo "🔍 [4/7] Verificando certificados existentes..."
 CERT_PATH="/etc/letsencrypt/live/${SITE_NAME}"
 
 if sudo test -d "${CERT_PATH}" && [[ "${FORCE}" == "false" ]]; then
-    # Obtener fecha de expiración
     EXPIRY=$(sudo openssl x509 -enddate -noout -in "${CERT_PATH}/cert.pem" 2>/dev/null | cut -d= -f2 || echo "unknown")
     EXPIRY_EPOCH=$(date -d "${EXPIRY}" +%s 2>/dev/null || echo "0")
     NOW_EPOCH=$(date +%s)
@@ -221,7 +229,7 @@ if sudo test -d "${CERT_PATH}" && [[ "${FORCE}" == "false" ]]; then
 
     if [[ ${DAYS_LEFT} -gt 30 ]]; then
         echo "   ✅ Cert vigente por más de 30 días, no se renueva"
-        echo "   Para forzar renovación: $0 ${SUBDOMAIN} --force"
+        echo "   Para forzar renovación: $0 ${DISPLAY_NAME} --force"
         exit 0
     else
         echo "   ⚠️  Cert expira en ${DAYS_LEFT} días, renovando..."
@@ -229,7 +237,7 @@ if sudo test -d "${CERT_PATH}" && [[ "${FORCE}" == "false" ]]; then
 fi
 
 # ----------------------------------------------------------------------
-# 5. Emitir certificado con certbot --nginx (no detiene servicio)
+# 5. Emitir certificado
 # ----------------------------------------------------------------------
 
 echo "🔒 [5/7] Emitiendo certificado SSL..."
@@ -240,14 +248,14 @@ CERTBOT_ARGS=(
     "--non-interactive"
     "--agree-tos"
     "--email" "${EMAIL}"
-    "--redirect"                          # Redirige HTTP → HTTPS automáticamente
-    "--no-eff-email"                      # No se registra en EFF mailing list
-    "--expand"                            # Expande cert existente si es necesario
+    "--redirect"
+    "--no-eff-email"
+    "--expand"
 )
 
 if [[ "${STAGING}" == "true" ]]; then
     CERTBOT_ARGS+=("--staging")
-    echo "   ⚠️  MODO STAGING (cert no válido para browsers, solo testing)"
+    echo "   ⚠️  MODO STAGING"
 fi
 
 if [[ "${FORCE}" == "true" ]]; then
@@ -270,15 +278,13 @@ fi
 
 echo "🔄 [6/7] Verificando renovación automática..."
 
-# Certbot instala automáticamente un timer de systemd para renovación
 if systemctl list-timers 2>/dev/null | grep -q certbot; then
     echo "   ✅ Timer de renovación activo"
 
-    # Probar que la renovación funcionaría (dry-run)
     if sudo certbot renew --dry-run --cert-name "${SITE_NAME}" > /dev/null 2>&1; then
         echo "   ✅ Dry-run de renovación: OK"
     else
-        echo "   ⚠️  Dry-run de renovación falló (revisa logs)"
+        echo "   ⚠️  Dry-run de renovación falló"
     fi
 else
     echo "   ⚠️  Timer de certbot no encontrado. Activando..."
@@ -291,7 +297,6 @@ fi
 
 echo "🔎 [7/7] Verificando HTTPS..."
 
-# Esperar unos segundos para que nginx reload tome efecto
 sleep 3
 
 HTTPS_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 10 \
@@ -304,7 +309,6 @@ else
     echo "   Revisa: sudo nginx -t && sudo systemctl status nginx"
 fi
 
-# Verificar redirect HTTP → HTTPS
 REDIRECT_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 10 \
     "http://${SITE_NAME}" 2>/dev/null || echo "000")
 
