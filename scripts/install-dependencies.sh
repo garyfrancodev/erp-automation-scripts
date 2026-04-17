@@ -103,7 +103,7 @@ echo "🖨️  [6/8] Instalando wkhtmltopdf 0.12.6.1 (Qt patched)..."
 WKHTML_VERSION="0.12.6.1-2"
 WKHTML_DEB="wkhtmltox_${WKHTML_VERSION}.jammy_amd64.deb"
 WKHTML_URL="https://github.com/wkhtmltopdf/packaging/releases/download/${WKHTML_VERSION}/${WKHTML_DEB}"
-WKHTML_SHA256="ea8277df4297afc507c61122d3c43fc6e3accf18f4dc0890e0b43c9ea08eed1d"
+WKHTML_SHA256="ee88d74834bdec650f7432c7d3ef1c981e42ae7a762a75a01f7f5da59abc18d5"
 
 cd /tmp
 wget -q "$WKHTML_URL" -O "$WKHTML_DEB"
