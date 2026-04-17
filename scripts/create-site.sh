@@ -31,12 +31,14 @@ Uso: $0 <subdominio> [apps...]
 
 Argumentos:
   subdominio    Nombre del subdominio (ej. 'tic' para tic.wdstudio.com.bo)
+                Usa '@' o 'root' para el dominio raíz
   apps          Apps a instalar (opcional)
 
 Ejemplos:
   $0 tic erpnext payments hrms
   $0 logisstar erpnext payments webshop
   $0 ingetrans erpnext
+  $0 @ erpnext payments
 EOF
     exit 1
 fi
@@ -56,15 +58,8 @@ if [[ "$(whoami)" != "${FRAPPE_USER}" ]]; then
     exit 1
 fi
 
-# Validar formato del subdominio
-if ! [[ "${SUBDOMAIN}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
-    echo "❌ Subdominio inválido: '${SUBDOMAIN}'" >&2
-    echo "   Debe contener solo letras minúsculas, números y guiones" >&2
-    exit 1
-fi
-
 # Validar dependencias
-for cmd in jq curl bench dig; do
+for cmd in jq curl bench dig openssl; do
     if ! command -v "${cmd}" &> /dev/null; then
         echo "❌ Falta '${cmd}'. Instálalo antes de continuar." >&2
         exit 1
@@ -95,13 +90,24 @@ if [[ ${#MISSING_VARS[@]} -gt 0 ]]; then
     exit 1
 fi
 
-# Si el subdomain es "@" o "root", usa el dominio raíz
+# ----------------------------------------------------------------------
+# Normalizar y validar subdominio
+# ----------------------------------------------------------------------
+
 if [[ "${SUBDOMAIN}" == "@" ]] || [[ "${SUBDOMAIN}" == "root" ]]; then
     SITE_NAME="${DOMAIN_NAME}"
-    DNS_NAME=""    # Registro A con nombre vacío = dominio raíz
+    DNS_NAME=""   # Registro raíz en Linode
+    DISPLAY_DNS_NAME="@"
 else
+    if ! [[ "${SUBDOMAIN}" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?$ ]]; then
+        echo "❌ Subdominio inválido: '${SUBDOMAIN}'" >&2
+        echo "   Debe contener solo letras minúsculas, números y guiones" >&2
+        exit 1
+    fi
+
     SITE_NAME="${SUBDOMAIN}.${DOMAIN_NAME}"
     DNS_NAME="${SUBDOMAIN}"
+    DISPLAY_DNS_NAME="${SUBDOMAIN}"
 fi
 
 # Validar que el bench existe
@@ -137,13 +143,14 @@ fi
 
 echo "   ✅ Todas las validaciones pasaron"
 echo "   📋 Sitio:     ${SITE_NAME}"
+echo "   📋 DNS:       ${DISPLAY_DNS_NAME}"
 echo "   📋 IP:        ${SERVER_IP}"
 echo "   📋 Apps:      ${APPS_TO_INSTALL[*]:-'(solo frappe)'}"
 
 # ----------------------------------------------------------------------
 # Log
 # ----------------------------------------------------------------------
-LOG_FILE="/home/${FRAPPE_USER}/logs/create-site-${SUBDOMAIN}-$(date +%Y%m%d-%H%M%S).log"
+LOG_FILE="/home/${FRAPPE_USER}/logs/create-site-$(echo "${SITE_NAME}" | tr '.' '_')-$(date +%Y%m%d-%H%M%S).log"
 mkdir -p "$(dirname "${LOG_FILE}")"
 exec > >(tee -a "${LOG_FILE}") 2>&1
 
@@ -171,10 +178,10 @@ echo "   ✅ Dominio encontrado (ID: ${DOMAIN_ID})"
 # Verificar si el registro A ya existe (idempotencia)
 EXISTING_RECORD=$(curl -sS -H "Authorization: Bearer ${LINODE_API_TOKEN}" \
     "https://api.linode.com/v4/domains/${DOMAIN_ID}/records?page_size=500" \
-    | jq -r ".data[] | select(.type==\"A\" and .name==\"${SUBDOMAIN}\") | .id")
+    | jq -r ".data[] | select(.type==\"A\" and .name==\"${DNS_NAME}\") | .id")
 
 if [[ -n "${EXISTING_RECORD}" ]]; then
-    echo "   ℹ️  Registro A '${SUBDOMAIN}' ya existe (ID: ${EXISTING_RECORD})"
+    echo "   ℹ️  Registro A '${DISPLAY_DNS_NAME}' ya existe (ID: ${EXISTING_RECORD})"
 
     CURRENT_TARGET=$(curl -sS -H "Authorization: Bearer ${LINODE_API_TOKEN}" \
         "https://api.linode.com/v4/domains/${DOMAIN_ID}/records/${EXISTING_RECORD}" \
@@ -192,7 +199,7 @@ if [[ -n "${EXISTING_RECORD}" ]]; then
         echo "   ✅ Ya apunta a la IP correcta"
     fi
 else
-    echo "   📝 Creando registro A '${SUBDOMAIN}' → ${SERVER_IP}..."
+    echo "   📝 Creando registro A '${DISPLAY_DNS_NAME}' → ${SERVER_IP}..."
 
     CREATE_RESPONSE=$(curl -sS -X POST \
         -H "Authorization: Bearer ${LINODE_API_TOKEN}" \
@@ -360,7 +367,7 @@ echo "  URL:              http://${SITE_NAME}"
 echo "  Apps:             ${APPS_TO_INSTALL[*]:-'(solo frappe)'}"
 echo "  Admin user:       Administrator"
 echo "  Admin password:   en ${ENV_FILE} como ${ADMIN_KEY}"
-echo "  DNS record:       ${SUBDOMAIN}.${DOMAIN_NAME} → ${SERVER_IP}"
+echo "  DNS record:       ${DISPLAY_DNS_NAME}.${DOMAIN_NAME} → ${SERVER_IP}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "🕐 Fin: $(date)"
