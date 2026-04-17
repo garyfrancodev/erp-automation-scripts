@@ -50,7 +50,7 @@ if ! command -v "${PYTHON_VERSION}" &> /dev/null; then
 fi
 
 # 5. Validar dependencias críticas del sistema
-for cmd in git node npm yarn wkhtmltopdf mysql redis-cli; do
+for cmd in git node npm yarn wkhtmltopdf mysql redis-cli curl; do
     if ! command -v "$cmd" &> /dev/null; then
         echo "❌ '$cmd' no está instalado. Corre antes los scripts previos." >&2
         exit 1
@@ -109,15 +109,37 @@ fi
 # Exportar para esta sesión
 export PATH="${FRAPPE_HOME}/.local/bin:${PATH}"
 
-# Verificar
+# Verificar bench
 BENCH_VERSION=$(bench --version 2>&1 || echo "error")
 echo "   ✅ bench CLI versión: ${BENCH_VERSION}"
+
+# ----------------------------------------------------------------------
+# Validar/instalar uv (requerido por bench moderno)
+# ----------------------------------------------------------------------
+
+echo "🧰 [3/7] Verificando uv..."
+
+if ! command -v uv &> /dev/null; then
+    echo "   📥 'uv' no está instalado. Instalándolo..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+
+# Reexportar PATH por si el instalador lo puso en ~/.local/bin
+export PATH="${FRAPPE_HOME}/.local/bin:${PATH}"
+
+if ! command -v uv &> /dev/null; then
+    echo "❌ No se pudo detectar 'uv' en el PATH después de instalarlo." >&2
+    echo "   Verifica manualmente con: ls -la ${FRAPPE_HOME}/.local/bin/uv" >&2
+    exit 1
+fi
+
+echo "   ✅ uv versión: $(uv --version)"
 
 # ----------------------------------------------------------------------
 # Verificar estado del bench existente
 # ----------------------------------------------------------------------
 
-echo "🔍 [3/7] Verificando bench existente..."
+echo "🔍 [4/7] Verificando bench existente..."
 
 if [[ -d "${BENCH_PATH}" ]]; then
     # ¿Está completo o corrupto?
@@ -150,7 +172,7 @@ fi
 # Inicializar bench
 # ----------------------------------------------------------------------
 
-echo "🏗️  [4/7] Inicializando bench (esto puede tardar 5-15 minutos)..."
+echo "🏗️  [5/7] Inicializando bench (esto puede tardar 5-15 minutos)..."
 echo "   Branch:  ${FRAPPE_BRANCH}"
 echo "   Python:  ${PYTHON_VERSION}"
 echo "   Path:    ${BENCH_PATH}"
@@ -167,7 +189,7 @@ bench init "${BENCH_DIR}" \
 # Verificar instalación
 # ----------------------------------------------------------------------
 
-echo "🔍 [5/7] Verificando instalación..."
+echo "🔍 [6/7] Verificando instalación..."
 
 if [[ ! -d "${BENCH_PATH}/apps/frappe" ]]; then
     echo "❌ Frappe no se instaló correctamente." >&2
@@ -183,19 +205,13 @@ echo "   ✅ Frappe instalado: ${FRAPPE_INSTALLED_VERSION}"
 # Configurar common_site_config.json para multi-tenant
 # ----------------------------------------------------------------------
 
-echo "⚙️  [6/7] Configurando multi-tenant..."
+echo "⚙️  [7/7] Configurando multi-tenant..."
 
 # Habilitar DNS multi-tenant (cada sitio por su dominio)
 bench config dns_multitenant on
 echo "   ✅ DNS multi-tenant habilitado"
 
-# ----------------------------------------------------------------------
 # Permisos del directorio home (Nginx necesita acceso para servir assets)
-# ----------------------------------------------------------------------
-
-echo "🔐 [7/7] Ajustando permisos..."
-
-# Nginx corre como www-data y necesita leer los assets públicos en /home/frappe/frappe-bench/sites/
 chmod o+rx "${FRAPPE_HOME}"
 echo "   ✅ Permisos de ${FRAPPE_HOME} ajustados (o+rx) para Nginx"
 
@@ -213,11 +229,12 @@ echo "  Branch:          ${FRAPPE_BRANCH}"
 echo "  Versión Frappe:  ${FRAPPE_INSTALLED_VERSION}"
 echo "  Multi-tenant:    habilitado"
 echo "  bench CLI:       ${FRAPPE_HOME}/.local/bin/bench"
+echo "  uv CLI:          ${FRAPPE_HOME}/.local/bin/uv"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 echo "🕐 Fin: $(date)"
 echo ""
 echo "ℹ️  Próximos pasos:"
-echo "   1. Instalar apps:     cd ${BENCH_PATH} && bench get-app erpnext --branch version-15"
+echo "   1. Instalar apps:      cd ${BENCH_PATH} && bench get-app erpnext --branch version-15"
 echo "   2. Crear primer sitio: bench new-site tic.ingetrans.com --mariadb-root-password <pass>"
 echo "   3. Configurar producción: sudo bench setup production ${FRAPPE_USER}"
