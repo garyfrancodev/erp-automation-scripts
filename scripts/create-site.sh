@@ -95,7 +95,14 @@ if [[ ${#MISSING_VARS[@]} -gt 0 ]]; then
     exit 1
 fi
 
-SITE_NAME="${SUBDOMAIN}.${DOMAIN_NAME}"
+# Si el subdomain es "@" o "root", usa el dominio raíz
+if [[ "${SUBDOMAIN}" == "@" ]] || [[ "${SUBDOMAIN}" == "root" ]]; then
+    SITE_NAME="${DOMAIN_NAME}"
+    DNS_NAME=""    # Registro A con nombre vacío = dominio raíz
+else
+    SITE_NAME="${SUBDOMAIN}.${DOMAIN_NAME}"
+    DNS_NAME="${SUBDOMAIN}"
+fi
 
 # Validar que el bench existe
 if [[ ! -d "${BENCH_DIR}" ]]; then
@@ -192,7 +199,7 @@ else
         -H "Content-Type: application/json" \
         -d "{
             \"type\": \"A\",
-            \"name\": \"${SUBDOMAIN}\",
+            \"name\": \"${DNS_NAME}\",
             \"target\": \"${SERVER_IP}\",
             \"ttl_sec\": 300
         }" \
