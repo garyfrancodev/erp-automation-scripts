@@ -136,6 +136,10 @@ echo "🌐 [5/8] Configurando Nginx..."
 # bench setup nginx genera config/nginx.conf dentro del bench
 bench setup nginx --yes
 
+# Parchear formato de log "main" que no existe en algunos nginx.conf
+sed -i 's|access_log  /var/log/nginx/access.log main;|access_log /var/log/nginx/access.log;|g' "${BENCH_DIR}/config/nginx.conf"
+sed -i 's|access_log /var/log/nginx/access.log main;|access_log /var/log/nginx/access.log;|g' "${BENCH_DIR}/config/nginx.conf"
+
 # Crear symlink para que Nginx lea la config del bench
 NGINX_CONF_SRC="${BENCH_DIR}/config/nginx.conf"
 NGINX_CONF_DST="/etc/nginx/conf.d/frappe-bench.conf"
