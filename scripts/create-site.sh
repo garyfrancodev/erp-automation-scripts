@@ -136,7 +136,7 @@ done
 
 # Validar token de Linode
 if ! curl -fsS -H "Authorization: Bearer ${LINODE_API_TOKEN}" \
-    "https://api.linode.com/v4/domains?page_size=1" > /dev/null; then
+    "https://api.linode.com/v4/domains?page_size=25" > /dev/null; then
     echo "❌ Token de Linode inválido o sin acceso a Domains API." >&2
     exit 1
 fi
