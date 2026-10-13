@@ -11,6 +11,17 @@ ROOT_DIR="$(cd "$LIB_DIR/../.." && pwd)"
 # shellcheck source=config.env
 source "$LIB_DIR/config.env"
 
+# Autodetección de la IP pública del servidor si no está definida
+get_public_ip() {
+  local ip=""
+  ip="$(curl -s4 --max-time 3 https://ifconfig.me 2>/dev/null \
+     || curl -s4 --max-time 3 https://api.ipify.org 2>/dev/null \
+     || ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' \
+     || true)"
+  echo "${ip:-127.0.0.1}"
+}
+SERVER_IP="${SERVER_IP:-$(get_public_ip)}"
+
 ENV_FILE="${ENV_FILE:-$ROOT_DIR/.env}"
 FRAPPE_HOME="/home/$FRAPPE_USER"
 BENCH_PATH="$FRAPPE_HOME/$BENCH_NAME"

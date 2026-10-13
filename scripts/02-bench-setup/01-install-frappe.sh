@@ -34,6 +34,8 @@ if [ -d "$BENCH_PATH" ]; then
 fi
 
 echo "🏗️ Creando bench en $BENCH_PATH con Frappe $FRAPPE_BRANCH..."
+echo "⏳ 'bench init' descargará e instalará el entorno virtual, paquetes de Python y librerías Node."
+echo "   Este proceso toma habitualmente entre 5 y 10 minutos. Por favor no cierres la terminal..."
 cd "$FRAPPE_HOME"
 bench init "$BENCH_NAME" --frappe-branch "$FRAPPE_BRANCH"
 

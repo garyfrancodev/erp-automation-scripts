@@ -13,7 +13,21 @@ set -Eeuo pipefail
 #   6) bash scripts/sites/create-site.sh <subdominio>            → crea un sitio (por cliente)
 #   7) bash scripts/sites/enable-ssl.sh <sitio> <correo>         → SSL cuando el DNS propague
 
-SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts"
+CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Si el repositorio fue clonado dentro de /root, el usuario 'frappe' no podrá acceder por permisos.
+# Se migra automáticamente a /opt/erp-automation-scripts para garantizar transparencia total.
+if [[ "$CURRENT_DIR" == /root* ]]; then
+  TARGET_OPT="/opt/erp-automation-scripts"
+  echo "⚠️  Detectado repositorio dentro de /root ($CURRENT_DIR)."
+  echo "    El usuario 'frappe' no tiene acceso a /root. Moviendo a $TARGET_OPT..."
+  sudo mkdir -p /opt
+  sudo mv "$CURRENT_DIR" "$TARGET_OPT"
+  cd "$TARGET_OPT"
+  exec bash "$TARGET_OPT/setup.sh"
+fi
+
+SCRIPTS_DIR="$CURRENT_DIR/scripts"
 SERVER_DIR="$SCRIPTS_DIR/01-server-setup"
 
 echo "🚀 Iniciando instalación paso a paso del servidor base..."

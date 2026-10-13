@@ -4,9 +4,22 @@ Scripts modulares y CLI de administración para preparar y operar servidores Ubu
 
 ---
 
-## ⚡ CLI Rápido (`./erp`)
+## ⚡ Instalación en 1 Solo Paso (Servidor Nuevo)
 
-El repositorio incluye un CLI unificado en la raíz para no tener que memorizar rutas:
+En un VPS recién creado con Ubuntu 22.04 LTS, conéctate por SSH como `root` y pega este comando:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/garyfrancodev/erp-automation-scripts/main/bootstrap.sh | bash
+```
+> **Tip de Conectividad:** Para evitar que la instalación se corte si se desconecta tu internet durante descargas pesadas (`bench init`), se recomienda iniciar una sesión persistente antes con: `tmux` o `screen`.
+
+El script se encarga de instalar Git/Curl, clonar el repositorio en `/opt/erp-automation-scripts`, autodetectar la IP pública real de tu VPS y ejecutar la configuración inicial completa.
+
+---
+
+## 🛠️ CLI de Operación Rápida (`./erp`)
+
+El repositorio incluye un CLI unificado en la raíz para operar el servidor sin memorizar rutas:
 
 ```bash
 # Ver estado de los servicios (Nginx, MariaDB, Fail2ban, Supervisor)

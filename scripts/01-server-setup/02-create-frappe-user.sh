@@ -30,3 +30,8 @@ sudo chmod o+x "$FRAPPE_HOME"
 
 # Evitar advertencias de Git sobre 'dubious ownership' al clonar/actualizar apps
 as_frappe git config --global --add safe.directory "*"
+
+# Otorgar propiedad del repositorio a frappe para permitirle usar ./erp, editar .env y ejecutar git pull
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+echo "📁 Ajustando permisos del repositorio ($REPO_DIR) para '$FRAPPE_USER'..."
+sudo chown -R "$FRAPPE_USER:$FRAPPE_USER" "$REPO_DIR"

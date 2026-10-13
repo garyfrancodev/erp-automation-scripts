@@ -6,6 +6,9 @@ require_bench
 
 cd "$BENCH_PATH"
 
+echo "⏳ Obteniendo aplicaciones para el Bench: $BENCH_APPS"
+echo "   La descarga y compilación de ERPNext puede tomar varios minutos. Por favor espera..."
+
 for app in $BENCH_APPS; do
   if [ -d "apps/$app" ]; then
     echo "ℹ️ La app '$app' ya está descargada. Saltando..."
