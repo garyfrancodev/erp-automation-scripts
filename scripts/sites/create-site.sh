@@ -45,10 +45,27 @@ require_bench
 require_cmd jq "Instálalo con: sudo apt install jq"
 require_cmd curl
 
+FORCE=false
+for arg in "$@"; do
+  if [ "$arg" = "--force" ] || [ "$arg" = "-f" ]; then
+    FORCE=true
+  fi
+done
+
 if [ -d "$BENCH_PATH/sites/$SITE_NAME" ]; then
-  echo "⚠️ El sitio '$SITE_NAME' ya existe. Abortando."
-  exit 1
+  if [ "$FORCE" = true ]; then
+    echo "⚠️  Eliminando sitio existente '$SITE_NAME' (--force activado)..."
+    as_frappe bench drop-site "$SITE_NAME" --force --root-password "$DB_PASSWORD" 2>/dev/null || true
+    sudo rm -rf "$BENCH_PATH/sites/$SITE_NAME"
+    echo "✅ Sitio anterior '$SITE_NAME' eliminado para instalación limpia."
+  else
+    echo "⚠️ El sitio '$SITE_NAME' ya existe (o una instalación anterior quedó a medias)."
+    echo "   Para reinstalarlo limpiamente desde cero, ejecuta:"
+    echo "   erp site create $SITE_NAME --force"
+    exit 1
+  fi
 fi
+
 
 # ======================
 # 🌐 Configuración DNS (Linode opcional)
@@ -98,6 +115,9 @@ fi
 # ======================
 # 🏗️ Crear sitio ERPNext
 # ======================
+# Garantizar que Supervisor y Redis Queue estén activos para que 'install-app' no falle
+ensure_redis_and_supervisor
+
 cd "$BENCH_PATH"
 
 echo "🌐 Creando sitio ERPNext: $SITE_NAME"
@@ -105,7 +125,9 @@ echo "🌐 Creando sitio ERPNext: $SITE_NAME"
 as_frappe bench new-site "$SITE_NAME" \
   --admin-password "$ADMIN_PASSWORD" \
   --mariadb-root-username "$DB_USER" \
-  --mariadb-root-password "$DB_PASSWORD"
+  --mariadb-root-password "$DB_PASSWORD" \
+  --force
+
 
 if [ "$ADMIN_GENERATED" = true ]; then
   set_env "$ADMIN_KEY" "$ADMIN_PASSWORD"

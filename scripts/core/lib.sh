@@ -90,3 +90,61 @@ set_env() {
     sudo chown "$FRAPPE_USER:$FRAPPE_USER" "$ENV_FILE"
   fi
 }
+
+# ---------- Servicios de Background (Supervisor & Redis) ----------
+
+ensure_redis_and_supervisor() {
+  echo "🔍 Verificando servicios de background (Supervisor y Redis)..."
+
+  # Asegurar que el demonio de Supervisor esté activo en systemd
+  if ! sudo systemctl is-active --quiet supervisor; then
+    echo "⚙️ Iniciando demonio de Supervisor..."
+    sudo systemctl enable --now supervisor
+    sudo systemctl restart supervisor
+    sleep 2
+  fi
+
+  # Asegurar que la configuración de supervisor para el bench exista
+  if [ -f "$BENCH_PATH/config/supervisor.conf" ] && [ ! -f /etc/supervisor/conf.d/frappe-bench.conf ]; then
+    echo "🔗 Vinculando configuración de Supervisor para Frappe Bench..."
+    sudo ln -sf "$BENCH_PATH/config/supervisor.conf" /etc/supervisor/conf.d/frappe-bench.conf
+    sudo supervisorctl reread 2>/dev/null || true
+    sudo supervisorctl update 2>/dev/null || true
+  fi
+
+  # Recargar configuración y arrancar procesos de Frappe si estaban detenidos
+  sudo supervisorctl reread 2>/dev/null || true
+  sudo supervisorctl update 2>/dev/null || true
+  sudo supervisorctl start all 2>/dev/null || true
+
+  # Verificar si Redis Queue (11000) responde; reintentar hasta 8 veces
+  local max_retries=8
+  local count=0
+  while ! redis-cli -p 11000 ping &>/dev/null; do
+    count=$((count + 1))
+    if [ "$count" -ge "$max_retries" ]; then
+      echo "⚠️ Redis Queue (puerto 11000) no respondió vía Supervisor."
+      echo "   Iniciando Redis Queue en modo demonio de contingencia..."
+      if [ -f "$BENCH_PATH/config/redis_queue.conf" ]; then
+        redis-server "$BENCH_PATH/config/redis_queue.conf" --daemonize yes 2>/dev/null || true
+      fi
+      if [ -f "$BENCH_PATH/config/redis_cache.conf" ]; then
+        redis-server "$BENCH_PATH/config/redis_cache.conf" --daemonize yes 2>/dev/null || true
+      fi
+      sleep 2
+      break
+    fi
+    echo "⏳ Esperando disponibilidad de Redis Queue en 127.0.0.1:11000 (intento $count/$max_retries)..."
+    sudo supervisorctl restart frappe-bench-redis:* 2>/dev/null || sudo supervisorctl start all 2>/dev/null || true
+    sleep 1
+  done
+
+  if redis-cli -p 11000 ping &>/dev/null; then
+    echo "✅ Redis Queue operativo en 127.0.0.1:11000."
+  else
+    echo "❌ No se pudo conectar a Redis Queue en 127.0.0.1:11000." >&2
+    echo "   Revisa el estado con: sudo supervisorctl status" >&2
+    exit 1
+  fi
+}
+

@@ -28,7 +28,9 @@ Comandos disponibles:
   🌐 Sitios:
     erp site list                                       Lista todos los sitios configurados en el Bench
     erp site create <subdominio> [db-user db-pass]      Crea sitio nuevo, subdominio Linode y apps
+    erp site drop <sitio>                               Elimina un sitio y su base de datos
     erp site ssl <sitio> <correo>                       Habilita certificado SSL Let's Encrypt
+
 
   💾 Respaldos:
     erp backup create <sitio>                           Genera respaldo completo con archivos
@@ -65,8 +67,10 @@ case "$cmd" in
     shift || true
     case "$action" in
       create)  bash "$SCRIPTS_DIR/sites/create-site.sh" "$@" ;;
+      drop|delete) bash "$SCRIPTS_DIR/sites/drop-site.sh" "$@" ;;
       ssl)     bash "$SCRIPTS_DIR/sites/enable-ssl.sh" "$@" ;;
       list)
+
         # shellcheck source=scripts/core/lib.sh
         source "$SCRIPTS_DIR/core/lib.sh"
         echo "========================================"
@@ -127,12 +131,9 @@ case "$cmd" in
   restart)
     # shellcheck source=scripts/core/lib.sh
     source "$SCRIPTS_DIR/core/lib.sh"
-    echo "🔄 Reiniciando workers y recargando Nginx..."
-    if command -v bench &>/dev/null && [ -d "$BENCH_PATH" ]; then
-      (cd "$BENCH_PATH" && as_frappe bench restart) || sudo supervisorctl restart all
-    else
-      sudo supervisorctl restart all || true
-    fi
+    echo "🔄 Reiniciando Supervisor, workers y recargando Nginx..."
+    sudo systemctl restart supervisor 2>/dev/null || true
+    sudo supervisorctl restart all 2>/dev/null || true
     sudo nginx -t && sudo systemctl reload nginx
     echo "✅ Servicios reiniciados correctamente."
     ;;
