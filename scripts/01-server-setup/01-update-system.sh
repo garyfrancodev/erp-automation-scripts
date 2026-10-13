@@ -1,19 +1,20 @@
 #!/bin/bash
-set -euo pipefail
-
-export DEBIAN_FRONTEND=noninteractive
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/core/lib.sh"
 
 echo "🔄 [1/3] Actualizando índices de paquetes..."
-sudo apt-get update -y
+apt_get update -y
 
 echo "📦 [2/3] Actualizando paquetes del sistema..."
-sudo apt-get -y -q \
+apt_get -y -q \
     -o Dpkg::Options::="--force-confdef" \
     -o Dpkg::Options::="--force-confold" \
     dist-upgrade
 
 echo "🧹 [3/3] Limpiando paquetes obsoletos..."
-sudo apt-get autoremove -y
-sudo apt-get clean
+apt_get autoremove -y
+apt_get clean
 
 echo "✅ Sistema actualizado correctamente sin intervención manual."
+if [ -f /var/run/reboot-required ]; then
+  echo "⚠️  El sistema pide reinicio (kernel/librerías). Reinicia cuando puedas: sudo reboot"
+fi

@@ -1,0 +1,118 @@
+#!/bin/bash
+# ============================================================
+# CLI de administración para Frappe Bench / ERPNext
+# Uso: ./erp <grupo> <accion> [argumentos...]
+# ============================================================
+set -Eeuo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS_DIR="$ROOT_DIR/scripts"
+
+usage() {
+  cat <<'EOF'
+🚀 ERP Automation CLI
+
+Uso:
+  ./erp <grupo> <accion> [argumentos...]
+
+Comandos disponibles:
+
+  🌐 Sitios:
+    ./erp site create <subdominio> [db-user db-pass]    Crea sitio nuevo, subdominio Linode y apps
+    ./erp site ssl <sitio> <correo>                     Habilita certificado SSL Let's Encrypt
+
+  💾 Respaldos:
+    ./erp backup create <sitio>                         Genera respaldo completo con archivos
+    ./erp backup copy <origen> <destino>                Copia respaldos entre sitios
+    ./erp backup restore <sitio>                        Restaura el respaldo más reciente
+
+  🏗️ Bench:
+    ./erp bench init                                    Inicializa el Bench de Frappe (usuario frappe)
+    ./erp bench apps                                    Descarga ERPNext, HRMS y Webshop
+    ./erp bench prod                                    Configura producción (Nginx, Supervisor)
+
+  ⚙️ Servidor:
+    ./erp server setup                                  Aprovisiona servidor completo (root / sudo)
+    ./erp server update                                 Actualiza paquetes del sistema
+
+  📊 Monitoreo:
+    ./erp status                                        Muestra estado de Nginx, Supervisor y MariaDB
+
+  ❓ Ayuda:
+    ./erp help                                          Muestra este mensaje
+
+EOF
+  exit "${1:-0}"
+}
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+  site)
+    action="${1:-}"
+    shift || true
+    case "$action" in
+      create)  bash "$SCRIPTS_DIR/sites/create-site.sh" "$@" ;;
+      ssl)     bash "$SCRIPTS_DIR/sites/enable-ssl.sh" "$@" ;;
+      *)       echo "❌ Acción desconocida para 'site'. Opciones: create, ssl"; usage 1 ;;
+    esac
+    ;;
+
+  backup)
+    action="${1:-}"
+    shift || true
+    case "$action" in
+      create)  bash "$SCRIPTS_DIR/backups/generate-backup.sh" "$@" ;;
+      copy)    bash "$SCRIPTS_DIR/backups/copy-backup.sh" "$@" ;;
+      restore) bash "$SCRIPTS_DIR/backups/restore-backup.sh" "$@" ;;
+      *)       echo "❌ Acción desconocida para 'backup'. Opciones: create, copy, restore"; usage 1 ;;
+    esac
+    ;;
+
+  bench)
+    action="${1:-}"
+    shift || true
+    case "$action" in
+      init) bash "$SCRIPTS_DIR/02-bench-setup/01-install-frappe.sh" "$@" ;;
+      apps) bash "$SCRIPTS_DIR/02-bench-setup/02-install-apps.sh" "$@" ;;
+      prod) bash "$SCRIPTS_DIR/02-bench-setup/03-setup-production.sh" "$@" ;;
+      *)    echo "❌ Acción desconocida para 'bench'. Opciones: init, apps, prod"; usage 1 ;;
+    esac
+    ;;
+
+  server)
+    action="${1:-}"
+    shift || true
+    case "$action" in
+      setup)  bash "$ROOT_DIR/setup.sh" "$@" ;;
+      update) bash "$SCRIPTS_DIR/01-server-setup/01-update-system.sh" "$@" ;;
+      *)      echo "❌ Acción desconocida para 'server'. Opciones: setup, update"; usage 1 ;;
+    esac
+    ;;
+
+  status)
+    echo "========================================"
+    echo "📊 Estado de los Servicios ERPNext"
+    echo "========================================"
+    echo -n "🌐 Nginx:       "
+    sudo systemctl is-active nginx 2>/dev/null || echo "inactivo / no instalado"
+    echo -n "🛢️ MariaDB:     "
+    sudo systemctl is-active mariadb 2>/dev/null || echo "inactivo / no instalado"
+    echo -n "🛡️ Fail2ban:    "
+    sudo systemctl is-active fail2ban 2>/dev/null || echo "inactivo / no instalado"
+    echo ""
+    echo "⚙️ Supervisor (Procesos Frappe):"
+    sudo supervisorctl status 2>/dev/null || echo "Supervisor no está activo o no configurado aún."
+    echo "========================================"
+    ;;
+
+  help|--help|-h|"")
+    usage 0
+    ;;
+
+  *)
+    echo "❌ Comando desconocido: '$cmd'"
+    usage 1
+    ;;
+esac
