@@ -30,6 +30,10 @@ fi
 SCRIPTS_DIR="$CURRENT_DIR/scripts"
 SERVER_DIR="$SCRIPTS_DIR/01-server-setup"
 
+# shellcheck source=scripts/core/config.env
+source "$SCRIPTS_DIR/core/config.env"
+FRAPPE_USER="${FRAPPE_USER:-frappe}"
+
 echo "🚀 Iniciando instalación paso a paso del servidor base..."
 
 echo "1️⃣  Actualizando sistema..."
