@@ -67,6 +67,16 @@ else
   sudo npm install -g yarn
 fi
 
+# ---------- uv (gestor de paquetes Python ultrarrápido para Frappe Bench >= 5.31) ----------
+if command -v uv &>/dev/null; then
+  echo "✔️ uv $(uv --version) ya instalado."
+else
+  echo "📦 Instalando uv..."
+  sudo env PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install uv \
+    || curl -LsSf https://astral.sh/uv/install.sh | sudo env UV_INSTALL_DIR=/usr/local/bin sh
+fi
+
+
 # ---------- Ansible (bench setup production lo exige) ----------
 if command -v ansible &>/dev/null; then
   echo "✔️ Ansible ya instalado."
