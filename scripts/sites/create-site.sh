@@ -4,11 +4,14 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/core/lib.sh"
 # Uso: bash create-site.sh <subdominio> [db-user db-password]
 #   - db-user / db-password son opcionales: por defecto se leen de .env (DB_ROOT_USER / DB_ROOT_PASSWORD).
 #   - ADMIN_PASSWORD (variable de entorno) es opcional: si no se indica se genera una aleatoria.
-SUBDOMAIN="${1:-}"
+INPUT_NAME="${1:-}"
 
-if [ -z "$SUBDOMAIN" ]; then
-  echo "❌ Uso: bash $(basename "$0") <subdominio> [db-user db-password]"
-  echo "   Ej:  bash $(basename "$0") cliente1"
+if [ -z "$INPUT_NAME" ]; then
+  echo "❌ Uso: bash $(basename "$0") <dominio-o-subdominio> [db-user db-password]"
+  echo "   Ejemplos:"
+  echo "     erp site create francosystem.com"
+  echo "     erp site create garyfranco.dev"
+  echo "     erp site create cliente1                   (usará cliente1.$DOMAIN_NAME)"
   exit 1
 fi
 
@@ -20,8 +23,17 @@ if [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
   exit 1
 fi
 
-SITE_NAME="$SUBDOMAIN.$DOMAIN_NAME"
-ADMIN_KEY="ADMIN_PASSWORD_${SUBDOMAIN^^}"
+if [[ "$INPUT_NAME" == *"."* ]]; then
+  # Dominio completo especificado (ej. francosystem.com o garyfranco.dev)
+  SITE_NAME="$INPUT_NAME"
+  SUBDOMAIN="${INPUT_NAME%%.*}"
+else
+  # Subdominio simple (ej. cliente1 -> cliente1.mandox.com.bo)
+  SUBDOMAIN="$INPUT_NAME"
+  SITE_NAME="$SUBDOMAIN.$DOMAIN_NAME"
+fi
+
+ADMIN_KEY="ADMIN_PASSWORD_${SITE_NAME^^}"
 ADMIN_KEY="${ADMIN_KEY//[^A-Z0-9_]/_}"
 ADMIN_GENERATED=false
 if [ -z "${ADMIN_PASSWORD:-}" ]; then
@@ -38,49 +50,49 @@ if [ -d "$BENCH_PATH/sites/$SITE_NAME" ]; then
   exit 1
 fi
 
-# Token de Linode: variable de entorno ERP_DOMAINS_API o 1Password.
-if [ -z "${ERP_DOMAINS_API:-}" ]; then
-  require_cmd op "Define ERP_DOMAINS_API o instala/configura 1Password CLI."
-  ERP_DOMAINS_API="$(op read "$OP_DOMAINS_REF")"
+# ======================
+# 🌐 Configuración DNS (Linode opcional)
+# ======================
+MANAGE_LINODE_DNS=false
+if [ -n "${ERP_DOMAINS_API:-}" ]; then
+  MANAGE_LINODE_DNS=true
+elif command -v op &>/dev/null; then
+  ERP_DOMAINS_API="$(op read "$OP_DOMAINS_REF" 2>/dev/null || true)"
+  [ -n "$ERP_DOMAINS_API" ] && MANAGE_LINODE_DNS=true
 fi
 
-# El token se pasa por un archivo temporal de curl (-K) para que no aparezca en 'ps'.
-linode_api() {
-  local method="$1" path="$2" body="${3:-}"
-  local args=(-sS -X "$method" -K <(printf 'header = "Authorization: Bearer %s"\n' "$ERP_DOMAINS_API"))
-  if [ -n "$body" ]; then
-    args+=(-H "Content-Type: application/json" -d "$body")
+if [ "$MANAGE_LINODE_DNS" = true ]; then
+  linode_api() {
+    local method="$1" path="$2" body="${3:-}"
+    local args=(-sS -X "$method" -K <(printf 'header = "Authorization: Bearer %s"\n' "$ERP_DOMAINS_API"))
+    if [ -n "$body" ]; then
+      args+=(-H "Content-Type: application/json" -d "$body")
+    fi
+    curl "${args[@]}" "https://api.linode.com/v4$path"
+  }
+
+  DOMAIN_ID="$(linode_api GET "/domains?page_size=500" \
+    | jq -r --arg d "$DOMAIN_NAME" '.data[]? | select(.domain==$d) | .id' 2>/dev/null || true)"
+
+  if [ -n "$DOMAIN_ID" ] && [[ "$SITE_NAME" == *"$DOMAIN_NAME"* ]]; then
+    EXISTING_RECORD="$(linode_api GET "/domains/$DOMAIN_ID/records?page_size=500" \
+      | jq -r --arg n "$SUBDOMAIN" '.data[]? | select(.type=="A" and .name==$n) | .id' | head -n1 || true)"
+
+    if [ -n "$EXISTING_RECORD" ]; then
+      echo "ℹ️ El registro A '$SUBDOMAIN.$DOMAIN_NAME' ya existe en Linode."
+    else
+      echo "🌐 Creando subdominio en Linode: '$SITE_NAME' → $SERVER_IP..."
+      BODY="$(jq -n --arg n "$SUBDOMAIN" --arg ip "$SERVER_IP" '{type:"A", name:$n, target:$ip, ttl_sec:300}')"
+      linode_api POST "/domains/$DOMAIN_ID/records" "$BODY" >/dev/null || true
+      echo "✅ Subdominio '$SITE_NAME' registrado en Linode."
+    fi
+  else
+    echo "ℹ️ Dominio no perteneciente a Linode DNS. Asegúrate de configurar el registro A:"
+    echo "   $SITE_NAME → $SERVER_IP (en DigitalOcean, Cloudflare o tu proveedor DNS)"
   fi
-  curl "${args[@]}" "https://api.linode.com/v4$path"
-}
-
-# ======================
-# 🌐 Crear subdominio en Linode
-# ======================
-echo "🔎 Buscando dominio '$DOMAIN_NAME'..."
-DOMAIN_ID="$(linode_api GET "/domains?page_size=500" \
-  | jq -r --arg d "$DOMAIN_NAME" '.data[]? | select(.domain==$d) | .id')"
-
-if [ -z "$DOMAIN_ID" ]; then
-  echo "❌ Dominio '$DOMAIN_NAME' no encontrado en Linode (¿token inválido?)."
-  exit 1
-fi
-
-EXISTING_RECORD="$(linode_api GET "/domains/$DOMAIN_ID/records?page_size=500" \
-  | jq -r --arg n "$SUBDOMAIN" '.data[]? | select(.type=="A" and .name==$n) | .id' | head -n1 || true)"
-
-if [ -n "$EXISTING_RECORD" ]; then
-  echo "ℹ️ El registro A '$SUBDOMAIN.$DOMAIN_NAME' ya existe. Se omite su creación."
 else
-  echo "🌐 Creando subdominio '$SITE_NAME' → $SERVER_IP..."
-  BODY="$(jq -n --arg n "$SUBDOMAIN" --arg ip "$SERVER_IP" '{type:"A", name:$n, target:$ip, ttl_sec:300}')"
-  RESPONSE="$(linode_api POST "/domains/$DOMAIN_ID/records" "$BODY")"
-  if echo "$RESPONSE" | jq -e '.errors' >/dev/null; then
-    echo "❌ Error al crear subdominio:"
-    echo "$RESPONSE" | jq '.errors'
-    exit 1
-  fi
-  echo "✅ Subdominio '$SITE_NAME' creado."
+  echo "ℹ️ Asegúrate de apuntar tu registro A hacia la IP de este servidor:"
+  echo "   $SITE_NAME  A  $SERVER_IP"
 fi
 
 # ======================
