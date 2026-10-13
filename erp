@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 # CLI de administración para Frappe Bench / ERPNext
-# Uso: ./erp <grupo> <accion> [argumentos...]
+# Uso: erp <grupo> <accion> [argumentos...] (o ./erp ...)
 # ============================================================
 set -Eeuo pipefail
 
@@ -13,33 +13,36 @@ usage() {
 🚀 ERP Automation CLI
 
 Uso:
-  ./erp <grupo> <accion> [argumentos...]
+  erp <grupo> <accion> [argumentos...]   (o ./erp ...)
 
 Comandos disponibles:
 
   🌐 Sitios:
-    ./erp site create <subdominio> [db-user db-pass]    Crea sitio nuevo, subdominio Linode y apps
-    ./erp site ssl <sitio> <correo>                     Habilita certificado SSL Let's Encrypt
+    erp site list                                       Lista todos los sitios configurados en el Bench
+    erp site create <subdominio> [db-user db-pass]      Crea sitio nuevo, subdominio Linode y apps
+    erp site ssl <sitio> <correo>                       Habilita certificado SSL Let's Encrypt
 
   💾 Respaldos:
-    ./erp backup create <sitio>                         Genera respaldo completo con archivos
-    ./erp backup copy <origen> <destino>                Copia respaldos entre sitios
-    ./erp backup restore <sitio>                        Restaura el respaldo más reciente
+    erp backup create <sitio>                           Genera respaldo completo con archivos
+    erp backup copy <origen> <destino>                  Copia respaldos entre sitios
+    erp backup restore <sitio>                          Restaura el respaldo más reciente
 
   🏗️ Bench:
-    ./erp bench init                                    Inicializa el Bench de Frappe (usuario frappe)
-    ./erp bench apps                                    Descarga ERPNext, HRMS y Webshop
-    ./erp bench prod                                    Configura producción (Nginx, Supervisor)
+    erp bench all                                       Ejecuta init, apps y prod en un solo paso
+    erp bench init                                      Inicializa el Bench de Frappe (usuario frappe)
+    erp bench apps                                      Descarga ERPNext, HRMS y Webshop
+    erp bench prod                                      Configura producción (Nginx, Supervisor)
+
+  🔄 Servicios:
+    erp restart                                         Reinicia workers de Frappe y recarga Nginx
+    erp status                                          Muestra estado de Nginx, Supervisor y MariaDB
 
   ⚙️ Servidor:
-    ./erp server setup                                  Aprovisiona servidor completo (root / sudo)
-    ./erp server update                                 Actualiza paquetes del sistema
-
-  📊 Monitoreo:
-    ./erp status                                        Muestra estado de Nginx, Supervisor y MariaDB
+    erp server setup                                    Aprovisiona servidor completo (root / sudo)
+    erp server update                                   Actualiza paquetes del sistema
 
   ❓ Ayuda:
-    ./erp help                                          Muestra este mensaje
+    erp help                                            Muestra este mensaje
 
 EOF
   exit "${1:-0}"
@@ -55,7 +58,30 @@ case "$cmd" in
     case "$action" in
       create)  bash "$SCRIPTS_DIR/sites/create-site.sh" "$@" ;;
       ssl)     bash "$SCRIPTS_DIR/sites/enable-ssl.sh" "$@" ;;
-      *)       echo "❌ Acción desconocida para 'site'. Opciones: create, ssl"; usage 1 ;;
+      list)
+        # shellcheck source=scripts/core/lib.sh
+        source "$SCRIPTS_DIR/core/lib.sh"
+        echo "========================================"
+        echo "🌐 Sitios configurados en Frappe Bench:"
+        echo "========================================"
+        if [ -d "$BENCH_PATH/sites" ]; then
+          found=0
+          for s in "$BENCH_PATH"/sites/*/; do
+            if [ -f "${s}site_config.json" ]; then
+              site_name="$(basename "$s")"
+              echo "  • $site_name"
+              found=1
+            fi
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "  (Ningún sitio creado todavía)"
+          fi
+        else
+          echo "❌ Directorio $BENCH_PATH/sites no encontrado (¿Bench no instalado aún?)."
+        fi
+        echo "========================================"
+        ;;
+      *)       echo "❌ Acción desconocida para 'site'. Opciones: list, create, ssl"; usage 1 ;;
     esac
     ;;
 
@@ -74,11 +100,33 @@ case "$cmd" in
     action="${1:-}"
     shift || true
     case "$action" in
+      all)
+        echo "🚀 Iniciando configuración completa de Frappe Bench y Producción..."
+        bash "$SCRIPTS_DIR/02-bench-setup/01-install-frappe.sh"
+        bash "$SCRIPTS_DIR/02-bench-setup/02-install-apps.sh"
+        bash "$SCRIPTS_DIR/02-bench-setup/03-setup-production.sh"
+        echo ""
+        echo "🎉 ¡Todo el entorno Frappe Bench y Producción ha quedado configurado con éxito!"
+        echo "   Ya puedes crear tu primer sitio con: erp site create <subdominio>"
+        ;;
       init) bash "$SCRIPTS_DIR/02-bench-setup/01-install-frappe.sh" "$@" ;;
       apps) bash "$SCRIPTS_DIR/02-bench-setup/02-install-apps.sh" "$@" ;;
       prod) bash "$SCRIPTS_DIR/02-bench-setup/03-setup-production.sh" "$@" ;;
-      *)    echo "❌ Acción desconocida para 'bench'. Opciones: init, apps, prod"; usage 1 ;;
+      *)    echo "❌ Acción desconocida para 'bench'. Opciones: all, init, apps, prod"; usage 1 ;;
     esac
+    ;;
+
+  restart)
+    # shellcheck source=scripts/core/lib.sh
+    source "$SCRIPTS_DIR/core/lib.sh"
+    echo "🔄 Reiniciando workers y recargando Nginx..."
+    if command -v bench &>/dev/null && [ -d "$BENCH_PATH" ]; then
+      (cd "$BENCH_PATH" && as_frappe bench restart) || sudo supervisorctl restart all
+    else
+      sudo supervisorctl restart all || true
+    fi
+    sudo nginx -t && sudo systemctl reload nginx
+    echo "✅ Servicios reiniciados correctamente."
     ;;
 
   server)

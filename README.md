@@ -17,29 +17,33 @@ El script se encarga de instalar Git/Curl, clonar el repositorio en `/opt/erp-au
 
 ---
 
-## 🛠️ CLI de Operación Rápida (`./erp`)
+## 🛠️ CLI Global de Operación (`erp`)
 
-El repositorio incluye un CLI unificado en la raíz para operar el servidor sin memorizar rutas:
+Tras la instalación, el comando `erp` queda disponible globalmente en cualquier carpeta:
 
 ```bash
 # Ver estado de los servicios (Nginx, MariaDB, Fail2ban, Supervisor)
-./erp status
+erp status
+
+# Reiniciar procesos de Frappe y recargar Nginx
+erp restart
+
+# Listar todos los sitios activos en el servidor
+erp site list
 
 # Crear un nuevo sitio de cliente (crea DNS en Linode e instala apps)
-./erp site create cliente1
+erp site create cliente1
 
 # Activar SSL Let's Encrypt para un sitio
-./erp site ssl cliente1.mandox.com.bo admin@empresa.com
+erp site ssl cliente1.mandox.com.bo admin@empresa.com
 
 # Respaldos
-./erp backup create cliente1
-./erp backup copy cliente1 cliente2
-./erp backup restore cliente2
+erp backup create cliente1
+erp backup copy cliente1 cliente2
+erp backup restore cliente2
 
-# Configuración de bench (como usuario frappe)
-./erp bench init
-./erp bench apps
-./erp bench prod
+# Configuración completa de bench en 1 solo paso (o pasos individuales: init, apps, prod)
+erp bench all
 ```
 
 ---

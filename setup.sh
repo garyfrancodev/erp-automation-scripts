@@ -47,11 +47,28 @@ bash "$SERVER_DIR/04-install-dependencies.sh"
 echo "5️⃣  Instalando y configurando MariaDB..."
 bash "$SERVER_DIR/05-install-mariadb.sh"
 
+# Registrar comando global 'erp' en el sistema
+echo "🔗 Registrando comando global 'erp' en /usr/local/bin/erp..."
+sudo ln -sf "$CURRENT_DIR/erp" /usr/local/bin/erp
+
 echo "✅ Instalación base del servidor completa."
 echo ""
-echo "➡️  Siguientes pasos (como usuario frappe):"
-echo "   1. su - frappe"
-echo "   2. cd $(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-echo "   3. bash scripts/02-bench-setup/01-install-frappe.sh"
-echo "   4. bash scripts/02-bench-setup/02-install-apps.sh"
-echo "   5. bash scripts/02-bench-setup/03-setup-production.sh"
+
+CONTINUE_BENCH="${AUTO_INSTALL_BENCH:-}"
+if [ -z "$CONTINUE_BENCH" ] && [ -t 0 ]; then
+  echo "=========================================================="
+  read -r -p "¿Deseas instalar Frappe Bench y Producción ahora mismo? [S/n] " ans
+  ans="${ans:-S}"
+  if [[ "$ans" =~ ^[SsYy] ]]; then
+    CONTINUE_BENCH="true"
+  fi
+fi
+
+if [ "$CONTINUE_BENCH" = "true" ]; then
+  echo "🚀 Cambiando al usuario '$FRAPPE_USER' para ejecutar 'erp bench all'..."
+  exec su - "$FRAPPE_USER" -c "erp bench all"
+fi
+
+echo "➡️  Para continuar manualmente:"
+echo "   1. su - $FRAPPE_USER"
+echo "   2. erp bench all"

@@ -41,6 +41,11 @@ else
 fi
 
 chmod +x "$TARGET_DIR/erp" "$TARGET_DIR/setup.sh" "$TARGET_DIR"/scripts/*/*.sh
+ln -sf "$TARGET_DIR/erp" /usr/local/bin/erp
 
 echo "🚀 Arrancando configuración base del servidor..."
-exec bash "$TARGET_DIR/setup.sh"
+if [ -c /dev/tty ]; then
+  exec bash "$TARGET_DIR/setup.sh" </dev/tty
+else
+  exec bash "$TARGET_DIR/setup.sh"
+fi
