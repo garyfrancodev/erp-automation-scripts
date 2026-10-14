@@ -4,20 +4,35 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/core/lib.sh"
 # Uso: bash create-site.sh <subdominio> [db-user db-password]
 #   - db-user / db-password son opcionales: por defecto se leen de .env (DB_ROOT_USER / DB_ROOT_PASSWORD).
 #   - ADMIN_PASSWORD (variable de entorno) es opcional: si no se indica se genera una aleatoria.
-INPUT_NAME="${1:-}"
+FORCE=false
+POSITIONAL_ARGS=()
+
+for arg in "$@"; do
+  case "$arg" in
+    --force|-f)
+      FORCE=true
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$arg")
+      ;;
+  esac
+done
+
+INPUT_NAME="${POSITIONAL_ARGS[0]:-}"
 
 if [ -z "$INPUT_NAME" ]; then
-  echo "❌ Uso: bash $(basename "$0") <dominio-o-subdominio> [db-user db-password]"
+  echo "❌ Uso: bash $(basename "$0") <dominio-o-subdominio> [db-user db-password] [--force]"
   echo "   Ejemplos:"
   echo "     erp site create francosystem.com"
+  echo "     erp site create francosystem.com --force"
   echo "     erp site create garyfranco.dev"
   echo "     erp site create cliente1                   (usará cliente1.$DOMAIN_NAME)"
   exit 1
 fi
 
 load_env
-DB_USER="${2:-${DB_ROOT_USER:-}}"
-DB_PASSWORD="${3:-${DB_ROOT_PASSWORD:-}}"
+DB_USER="${POSITIONAL_ARGS[1]:-${DB_ROOT_USER:-}}"
+DB_PASSWORD="${POSITIONAL_ARGS[2]:-${DB_ROOT_PASSWORD:-}}"
 if [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
   echo "❌ No hay credenciales de MariaDB. Ejecuta install-mariadb.sh o pásalas como 2º y 3er argumento."
   exit 1
@@ -45,17 +60,10 @@ require_bench
 require_cmd jq "Instálalo con: sudo apt install jq"
 require_cmd curl
 
-FORCE=false
-for arg in "$@"; do
-  if [ "$arg" = "--force" ] || [ "$arg" = "-f" ]; then
-    FORCE=true
-  fi
-done
-
 if [ -d "$BENCH_PATH/sites/$SITE_NAME" ]; then
   if [ "$FORCE" = true ]; then
     echo "⚠️  Eliminando sitio existente '$SITE_NAME' (--force activado)..."
-    as_frappe bench drop-site "$SITE_NAME" --force --root-password "$DB_PASSWORD" 2>/dev/null || true
+    (cd "$BENCH_PATH" && as_frappe bench drop-site "$SITE_NAME" --force --root-password "$DB_PASSWORD") 2>/dev/null || true
     sudo rm -rf "$BENCH_PATH/sites/$SITE_NAME"
     echo "✅ Sitio anterior '$SITE_NAME' eliminado para instalación limpia."
   else
@@ -65,6 +73,7 @@ if [ -d "$BENCH_PATH/sites/$SITE_NAME" ]; then
     exit 1
   fi
 fi
+
 
 
 # ======================
