@@ -31,6 +31,11 @@ Comandos disponibles:
     erp site drop <sitio>                               Elimina un sitio y su base de datos
     erp site ssl <sitio> <correo>                       Habilita certificado SSL Let's Encrypt
 
+  📦 Aplicaciones (Custom Apps):
+    erp app list                                        Lista todas las apps instaladas en el Bench
+    erp app install <repo-url> [sitio]                  Descarga e instala una custom app en un sitio
+
+
 
   💾 Respaldos:
     erp backup create <sitio>                           Genera respaldo completo con archivos
@@ -93,9 +98,20 @@ case "$cmd" in
         fi
         echo "========================================"
         ;;
-      *)       echo "❌ Acción desconocida para 'site'. Opciones: list, create, ssl"; usage 1 ;;
+      *)       echo "❌ Acción desconocida para 'site'. Opciones: list, create, drop, ssl"; usage 1 ;;
     esac
     ;;
+
+  app)
+    action="${1:-}"
+    shift || true
+    case "$action" in
+      install|get|add) bash "$SCRIPTS_DIR/apps/install-app.sh" "$@" ;;
+      list)            bash "$SCRIPTS_DIR/apps/list-apps.sh" "$@" ;;
+      *)               echo "❌ Acción desconocida para 'app'. Opciones: list, install"; usage 1 ;;
+    esac
+    ;;
+
 
   backup)
     action="${1:-}"
