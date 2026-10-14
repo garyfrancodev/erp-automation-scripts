@@ -31,7 +31,9 @@ fi
 
 cd "$BENCH_PATH"
 
+ensure_nginx_log_format
 echo "🔒 Habilitando SSL con Let's Encrypt para $SITE_NAME (correo: $EMAIL)..."
+
 
 # bench no lee ninguna variable para el correo: la cuenta ACME se registra antes con certbot.
 # Si ya existe una cuenta, 'register' falla y se continúa con la existente.

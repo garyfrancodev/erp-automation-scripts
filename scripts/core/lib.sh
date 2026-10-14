@@ -148,3 +148,19 @@ ensure_redis_and_supervisor() {
   fi
 }
 
+# ---------- Formato de Logs de Nginx ----------
+
+ensure_nginx_log_format() {
+  # En Ubuntu/Debian, Nginx no incluye el formato 'main' por defecto y Frappe Bench lo referencia en los virtual hosts.
+  # Lo definimos en /etc/nginx/conf.d/00-frappe-log-format.conf para que cargue antes de frappe-bench.conf.
+  if ! sudo grep -rn "log_format.*main" /etc/nginx/ 2>/dev/null | grep -v "conf.d/frappe-bench.conf" &>/dev/null; then
+    echo "🔧 Configurando formato de log 'main' en Nginx..."
+    sudo tee /etc/nginx/conf.d/00-frappe-log-format.conf >/dev/null <<'EOF'
+log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                '$status $body_bytes_sent "$http_referer" '
+                '"$http_user_agent" "$http_x_forwarded_for"';
+EOF
+  fi
+}
+
+

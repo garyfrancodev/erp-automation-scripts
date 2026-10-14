@@ -10,8 +10,10 @@ as_frappe bench config dns_multitenant on
 # 'setup production' ya genera supervisor + nginx, así que no hace falta
 # 'bench setup supervisor' por separado. Necesita root: se usa la ruta absoluta
 # de bench porque 'sudo' no hereda el PATH del usuario.
+ensure_nginx_log_format
 echo "🔧 Configurando producción (usuario: $FRAPPE_USER)..."
 sudo "$(command -v bench)" setup production "$FRAPPE_USER" --yes
+
 
 echo "📋 Estado de los servicios:"
 sudo supervisorctl status || true

@@ -66,13 +66,26 @@ if [ -d "$BENCH_PATH/sites/$SITE_NAME" ]; then
     (cd "$BENCH_PATH" && as_frappe bench drop-site "$SITE_NAME" --force --root-password "$DB_PASSWORD") 2>/dev/null || true
     sudo rm -rf "$BENCH_PATH/sites/$SITE_NAME"
     echo "✅ Sitio anterior '$SITE_NAME' eliminado para instalación limpia."
+  elif [ -f "$BENCH_PATH/sites/$SITE_NAME/site_config.json" ]; then
+    echo "ℹ️ El sitio '$SITE_NAME' ya está creado y con sus apps instaladas."
+    echo "   Actualizando configuración de Nginx y verificando servicios..."
+    ensure_nginx_log_format
+    (cd "$BENCH_PATH" && as_frappe bench setup nginx --yes)
+    sudo nginx -t
+    sudo systemctl reload nginx
+    echo "✅ Nginx configurado y activo para '$SITE_NAME'."
+    echo "🔑 Contraseña de Administrator guardada en $ENV_FILE (si fue generada):"
+    echo "   Consúltala con: sudo grep $ADMIN_KEY $ENV_FILE"
+    echo "➡️  Ya puedes acceder o activar SSL: erp site ssl $SITE_NAME <correo>"
+    exit 0
   else
-    echo "⚠️ El sitio '$SITE_NAME' ya existe (o una instalación anterior quedó a medias)."
+    echo "⚠️ El sitio '$SITE_NAME' ya existe pero parece incompleto."
     echo "   Para reinstalarlo limpiamente desde cero, ejecuta:"
     echo "   erp site create $SITE_NAME --force"
     exit 1
   fi
 fi
+
 
 
 
@@ -157,9 +170,11 @@ sudo chmod -R o+rx "$BENCH_PATH/sites/$SITE_NAME/public"
 # Con dns_multitenant hay que regenerar nginx para publicar el sitio nuevo.
 if [ -L "/etc/nginx/conf.d/$BENCH_NAME.conf" ] || [ -f "/etc/nginx/conf.d/$BENCH_NAME.conf" ]; then
   echo "🔁 Regenerando nginx y recargando..."
+  ensure_nginx_log_format
   as_frappe bench setup nginx --yes
   sudo nginx -t
   sudo systemctl reload nginx
+
 else
   echo "ℹ️ Producción aún no configurada (scripts/02-bench-setup/03-setup-production.sh): se omite nginx."
 fi
